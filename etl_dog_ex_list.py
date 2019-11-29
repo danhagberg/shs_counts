@@ -2,11 +2,8 @@ import csv
 import re
 from argparse import ArgumentParser
 
-import pandas as pd
 import numpy as np
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def get_age_in_months(in_text):

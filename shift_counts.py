@@ -18,13 +18,10 @@ shift_times = {
 
 
 def etl_shift_schedule(file_name: str) -> pd.DataFrame:
-    # tabula.convert_into(file_name, file_name + '.csv', output_format='csv', pages='all', pandas_options={'header': [1]}, lattice=True)
-    # schedule_df = pd.read_csv(file_name + '.csv', header=[1])
     schedule_df = tabula.read_pdf(file_name, pages='all', pandas_options={'header': [1]}, lattice=True)
     schedule_df = schedule_df[(schedule_df.Volunteer != 'Volunteer')]  # Remove repeated header rows
     schedule_df = schedule_df.fillna(method='ffill')
     schedule_df = schedule_df[(schedule_df.Volunteer != 'Open')]
-    # schedule_df = schedule_df.drop(['Unnamed: 6'], axis=1)
     return schedule_df
 
 
@@ -56,8 +53,6 @@ def apply_exceptions(schedule_df: pd.DataFrame) -> pd.DataFrame:
     :param schedule_df: Current schedule
     :return: updated schedule dataframe with exceptions applied
     """
-    schedule_df.loc[schedule_df.Volunteer == 'James Kendle', 'Blue'] = True
-    schedule_df.loc[schedule_df.Volunteer == 'James Kendle', 'Purple'] = False
     return schedule_df
 
 
