@@ -131,7 +131,7 @@ def get_dog_counts_as_html(dogs_df):
 
 
 def get_dog_info_as_html(dogs_df):
-    return dogs_df[['holder', 'Level', 'location', 'kc']].rename_axis('name') \
+    return dogs_df[['holder', 'Level', 'location', 'kc', 'id']].rename_axis('name') \
         .sort_values(['holder', 'name'], ascending=[False, True]) \
         .to_html()
 
