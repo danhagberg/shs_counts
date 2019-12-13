@@ -125,12 +125,6 @@ def load_and_summarize_dbs_counts(file_name: str) -> pd.DataFrame:
     return get_dbs_shift_counts(shifts_df)
 
 
-# def load_and_summarize_dce_counts(file_name: str) -> pd.DataFrame:
-#     dce_shifts_df = pd.read_csv(file_name)
-#     dce_shifts_df['Start_Date'] = pd.to_datetime(dce_shifts_df['Begin'], infer_datetime_format=True)
-#     dce_shifts_df['End_Date'] = pd.to_datetime(dce_shifts_df['End'], infer_datetime_format=True)
-#     dce_shifts_df = dce_shifts_df.drop(['Begin', 'End'], axis=1)
-#     return get_dce_shift_counts(dce_shifts_df)
 def load_and_summarize_dce_counts(file_name: str) -> pd.DataFrame:
     # Load level by name data
     dces = pd.read_excel(file_name, sheet_name=0)
