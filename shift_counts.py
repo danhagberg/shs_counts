@@ -222,6 +222,11 @@ def main():
         dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
         all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
         all_assigned_fmt = format_combined_shift_counts(all_assigned)
+    elif args.dce_html:
+        dce_counts_df = dce_html.load_and_summarize_dce_counts(args.dce_html)
+        dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
+        all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
+        all_assigned_fmt = format_combined_shift_counts(all_assigned)
     else:
         all_assigned_fmt = dbs_assigned_fmt
 
