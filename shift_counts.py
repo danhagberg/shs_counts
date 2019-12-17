@@ -2,10 +2,13 @@ import re
 from argparse import ArgumentParser
 from datetime import date, datetime, timedelta
 from typing import Tuple, List
-import shift_exceptions as exceptions
 
 import pandas as pd
 import tabula
+
+import shift_exceptions as exceptions
+import dce_shift_counts_from_excel as dce_xls
+import dce_shift_counts_from_html as dce_html
 
 shift_times = {
     1: (((7, 30), (10, 30)), ((13, 0), (16, 0)), ((16, 0), (18, 0))),
@@ -41,25 +44,9 @@ def transform_dates(schedule_df: pd.DataFrame) -> pd.DataFrame:
     return schedule_df
 
 
-def transform_dce_dates(schedule_df: pd.DataFrame) -> pd.DataFrame:
-    schedule_df['Begin'] = schedule_df.apply(lambda l: l['Date'] + ' ' + l['From time'], axis=1)
-    schedule_df['Start_Date'] = pd.to_datetime(schedule_df['Begin'], infer_datetime_format=True)
-    schedule_df['End'] = schedule_df.apply(lambda l: l['Date'] + ' ' + l['To time'], axis=1)
-    schedule_df['End_Date'] = pd.to_datetime(schedule_df['End'], infer_datetime_format=True)
-    schedule_df = schedule_df.drop(['Date', 'Begin', 'End', 'From time', 'To time'], axis=1)
-    return schedule_df
-
-
 def get_dbs_shift_counts(schedule_df: pd.DataFrame) -> pd.DataFrame:
     shifts_minimal = schedule_df[['Start_Date', 'End_Date', 'Blue', 'Purple']]
     shift_counts = shifts_minimal.groupby(['Start_Date', 'End_Date']).sum()
-    return shift_counts
-
-
-def get_dce_shift_counts(schedule_df: pd.DataFrame) -> pd.DataFrame:
-    shifts_minimal = schedule_df[['Start_Date', 'End_Date', 'Level']]
-    shift_counts = shifts_minimal.groupby(['Start_Date', 'End_Date']).count()
-    shift_counts.rename(columns={'Level': 'Green'}, inplace=True)
     return shift_counts
 
 
@@ -123,26 +110,6 @@ def load_and_summarize_dbs_counts(file_name: str) -> pd.DataFrame:
     shifts_df = apply_exceptions(shifts_df)
     shifts_df = transform_dates(shifts_df)
     return get_dbs_shift_counts(shifts_df)
-
-
-def load_and_summarize_dce_counts(file_name: str) -> pd.DataFrame:
-    # Load level by name data
-    dces = pd.read_excel(file_name, sheet_name=0)
-    greens = dces[dces.LEVEL == 'GREEN-D']
-    greens = greens.rename(columns={'First name Last name': 'Full Name', 'LEVEL': 'Level'})
-    greens.set_index('Full Name', inplace=True)
-
-    # Load the shift by name data
-    sched = pd.read_excel(file_name, sheet_name=1)
-    sched['Full Name'] = sched['First name'] + ' ' + sched['Last name']
-    sched = sched.drop(columns=['First name', 'Last name', 'Note', 'Number'])
-    sched.set_index('Full Name', inplace=True)
-
-    # Add shift data for all Green DCEs
-    greens_shift_df = greens.merge(left_on='Full Name', right=sched, right_on='Full Name')
-    greens_shift_df = transform_dce_dates(greens_shift_df)
-
-    return get_dce_shift_counts(greens_shift_df)
 
 
 def save_shift_counts_as_html(shift_counts_df: pd.DataFrame, output_file: str):
@@ -240,7 +207,8 @@ def get_schedule(shift_counts: pd.DataFrame) -> List[tuple]:
 def main():
     parser = ArgumentParser()
     parser.add_argument('dbs_report', help='File containing DBS Shift report PDF', metavar='dbs_file')
-    parser.add_argument('--dce_file', help='File containing DCE Shift as XLSX', metavar='dce_file', required=False)
+    parser.add_argument('--dce_xls', help='File containing DCE Shift as XLSX', metavar='dce_xls', required=False)
+    parser.add_argument('--dce_html', help='File(s) containing DCE Shift as HTML', metavar='dce_html', required=False)
     parser.add_argument('--html', help='Output as html', required=False, action='store_true')
     parser.add_argument('--csv', help='Output as csv', required=False, action='store_true')
     args = parser.parse_args()
@@ -249,8 +217,8 @@ def main():
     dbs_assigned = assign_dbs_to_shift(shift_counts_df, schedule)
     dbs_assigned_fmt = format_shift_counts(dbs_assigned)
 
-    if args.dce_file:
-        dce_counts_df = load_and_summarize_dce_counts(args.dce_file)
+    if args.dce_xls:
+        dce_counts_df = dce_xls.load_and_summarize_dce_counts(args.dce_xls)
         dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
         all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
         all_assigned_fmt = format_combined_shift_counts(all_assigned)
