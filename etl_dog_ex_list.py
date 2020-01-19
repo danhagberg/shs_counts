@@ -1,6 +1,7 @@
 import csv
 import re
 from argparse import ArgumentParser
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -42,6 +43,13 @@ def get_level(row):
     return level
 
 
+def extract_report_time(rpt_title):
+    title_parts = rpt_title.split('-')
+    rpt_time_str = title_parts[1].strip()
+    rpt_time = datetime.strptime(rpt_time_str, '%m/%d/%Y %I:%M %p')
+    return rpt_time
+
+
 def get_dogs(file_loc):
     dogs = {}
     with open(file_loc, 'r') as dogs_csv:
@@ -49,7 +57,9 @@ def get_dogs(file_loc):
         k_reader = csv.reader(dogs_csv)
         for row in k_reader:
             row = row[8:]
-            if row[0] == 'AM':
+            if 'Dog Exercise List' in row[0]:
+                report_time = extract_report_time(row[0])
+            elif row[0] == 'AM':
                 name = get_name(row[5])
                 weight = get_weight(row[7])
                 loc = row[3]
@@ -97,7 +107,7 @@ def get_dogs(file_loc):
 
     dogs = {k: v for k, v in dogs.items() if 'DELETE' not in k}
 
-    return dogs
+    return dogs, report_time
 
 
 def get_dog_counts_dataframe(dogs_df):
@@ -119,9 +129,10 @@ def get_dog_counts_dataframe(dogs_df):
 
 def get_dog_counts_as_html(dogs_df):
     dog_counts_df = get_dog_counts_dataframe(dogs_df)
-    dc_out = dog_counts_df.rename(index={'Blue': '3 - Blue', 'Green': '2 - Green', 'Orange': '9 - Orange', 'Purple': '4 - Purple',
-                              'Red': '8 - Red', 'Red - BQ': '6 - Red - BQ', 'Red - Default': '7 - Red - Default',
-                              'Red - Team': '5 - Red - Team', 'Total': 'Total'}).sort_index()
+    dc_out = dog_counts_df.rename(
+        index={'Blue': '3 - Blue', 'Green': '2 - Green', 'Orange': '9 - Orange', 'Purple': '4 - Purple',
+               'Red': '8 - Red', 'Red - BQ': '6 - Red - BQ', 'Red - Default': '7 - Red - Default',
+               'Red - Team': '5 - Red - Team', 'Total': 'Total'}).sort_index()
     styles = [
         dict(selector="tr", props=[('text-align', 'right')]),
         dict(selector='th', props=[('text-align', 'right')])
@@ -155,10 +166,11 @@ def main():
     parser.add_argument('filename', help='File containing dog exercise csv', metavar='dog_file')
     parser.add_argument('--html', help='Output as html', required=False, action='store_true')
     args = parser.parse_args()
-    dogs = get_dogs(args.filename)
+    dogs, report_time = get_dogs(args.filename)
     output_html = args.html
     dogs_df = get_dog_dataframe(dogs)
     if output_html:
+        print(f"<h3>{datetime.strftime(report_time, '%A, %b %d, %Y at %I:%M %p ')}</h3>")
         print('<h2>DBS Dog Counts</h2>')
         print(get_dog_counts_as_html(filter_for_dbs(dogs_df)))
         print('<br><br>')
@@ -168,6 +180,7 @@ def main():
         print('<h2>Dog Locations</h2>')
         print(get_dog_info_as_html(dogs_df))
     else:
+        print(datetime.strftime(report_time, '%A, %b %d, %Y at %I:%M %p '))
         print('DBS Dog Counts')
         print(get_dog_counts_dataframe(filter_for_dbs(dogs_df)))
         print('Staff/BPA Dog Counts')
