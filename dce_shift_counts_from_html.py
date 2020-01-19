@@ -1,6 +1,8 @@
 import re
 from collections import Counter
 from datetime import datetime
+from os import listdir
+from os.path import isdir, isfile, join
 
 import bs4
 import pandas as pd
@@ -100,8 +102,14 @@ def get_counts_by_shift(shift_counts: dict) -> dict:
 
 
 def load_and_summarize_dce_counts(file_name: str) -> pd.DataFrame:
-    shift_counts = process_dce_html_file('/Users/dhagberg/Desktop/DCE2.html')
-    shift_counts_df = get_counts_by_shift(shift_counts)
+    if isdir(file_name):
+        files = [join(file_name, sched) for sched in listdir(file_name) if isfile(join(file_name, sched))]
+        scs = [load_and_summarize_dce_counts(sched) for sched in files]
+        shift_counts_df = pd.concat(scs)
+    else:
+        shift_counts = process_dce_html_file(file_name)
+        shift_counts_df = get_counts_by_shift(shift_counts)
+
     return shift_counts_df
 
 

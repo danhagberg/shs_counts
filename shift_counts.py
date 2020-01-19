@@ -119,7 +119,14 @@ def save_shift_counts_as_html(shift_counts_df: pd.DataFrame, output_file: str):
 
 
 def save_shift_counts_as_csv(shift_counts_df: pd.DataFrame, output_file: str):
-    shift_counts_df.to_csv(output_file, index=False)
+    a_df = pd.DataFrame(shift_counts_df.to_records())  # Flatten out multi index
+    a_df['Start'] = a_df['shift'].apply(lambda s: s[0])
+    a_df['End'] = a_df['shift'].apply(lambda s: s[1])
+    if 'Green' in shift_counts_df.columns:
+        a_df = a_df[['Start', 'End', 'Green', 'Blue', 'Purple']]
+    else:
+        a_df = a_df[['Start', 'End', 'Blue', 'Purple']]
+    a_df.to_csv(output_file, index=False)
 
 
 def get_shift_schedule(for_date: date, start: tuple, end: tuple) -> tuple:
@@ -208,7 +215,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('dbs_report', help='File containing DBS Shift report PDF', metavar='dbs_file')
     parser.add_argument('--dce_xls', help='File containing DCE Shift as XLSX', metavar='dce_xls', required=False)
-    parser.add_argument('--dce_html', help='File(s) containing DCE Shift as HTML', metavar='dce_html', required=False)
+    parser.add_argument('--dce_html_dir', help='Directory containing DCE Schedules as HTML', metavar='dce_html_dir',
+                        required=False)
     parser.add_argument('--html', help='Output as html', required=False, action='store_true')
     parser.add_argument('--csv', help='Output as csv', required=False, action='store_true')
     args = parser.parse_args()
@@ -222,12 +230,13 @@ def main():
         dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
         all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
         all_assigned_fmt = format_combined_shift_counts(all_assigned)
-    elif args.dce_html:
-        dce_counts_df = dce_html.load_and_summarize_dce_counts(args.dce_html)
+    elif args.dce_html_dir:
+        dce_counts_df = dce_html.load_and_summarize_dce_counts(args.dce_html_dir)
         dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
         all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
         all_assigned_fmt = format_combined_shift_counts(all_assigned)
     else:
+        all_assigned = dbs_assigned
         all_assigned_fmt = dbs_assigned_fmt
 
     output_html = args.html
@@ -236,7 +245,10 @@ def main():
         print('<h2>DBS Shift Counts</h2>')
         print(get_shift_counts_as_html(all_assigned_fmt))
     if output_csv:
-        save_shift_counts_as_csv(dbs_assigned_fmt, 'DBS_Shift_Counts.csv')
+        csv_out_name = \
+            f'DBS_Shift_Counts_{schedule[0][0].strftime("%Y_%m_%d")}_{schedule[-1][1].strftime("%Y_%m_%d")}.csv'
+        save_shift_counts_as_csv(all_assigned, csv_out_name)
+        print(f'Shift Counts saved to {csv_out_name}')
     if not output_html and not output_csv:
         print('DBS Shift Counts')
         print(all_assigned_fmt)
