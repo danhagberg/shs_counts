@@ -7,7 +7,6 @@ import pandas as pd
 import tabula
 
 import shift_exceptions as exceptions
-import dce_shift_counts_from_excel as dce_xls
 import dce_shift_counts_from_html as dce_html
 
 shift_times = {
@@ -214,7 +213,6 @@ def get_schedule(shift_counts: pd.DataFrame) -> List[tuple]:
 def main():
     parser = ArgumentParser()
     parser.add_argument('dbs_report', help='File containing DBS Shift report PDF', metavar='dbs_file')
-    parser.add_argument('--dce_xls', help='File containing DCE Shift as XLSX', metavar='dce_xls', required=False)
     parser.add_argument('--dce_html_dir', help='Directory containing DCE Schedules as HTML', metavar='dce_html_dir',
                         required=False)
     parser.add_argument('--html', help='Output as html', required=False, action='store_true')
@@ -225,15 +223,11 @@ def main():
     dbs_assigned = assign_dbs_to_shift(shift_counts_df, schedule)
     dbs_assigned_fmt = format_shift_counts(dbs_assigned)
 
-    if args.dce_xls:
-        dce_counts_df = dce_xls.load_and_summarize_dce_counts(args.dce_xls)
-        dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
-        all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
-        all_assigned_fmt = format_combined_shift_counts(all_assigned)
-    elif args.dce_html_dir:
+    if args.dce_html_dir:
         dce_counts_df = dce_html.load_and_summarize_dce_counts(args.dce_html_dir)
         dce_assigned = assign_dce_to_shift(dce_counts_df, schedule)
-        all_assigned = dce_assigned.merge(dbs_assigned, left_index=True, right_index=True)
+        all_assigned = dbs_assigned.merge(dce_assigned, how='left', left_index=True, right_index=True)
+        all_assigned.fillna(0, inplace=True)
         all_assigned_fmt = format_combined_shift_counts(all_assigned)
     else:
         all_assigned = dbs_assigned
