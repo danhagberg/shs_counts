@@ -22,6 +22,8 @@ shift_times = {
 
 def etl_shift_schedule(file_name: str) -> pd.DataFrame:
     schedule_df = tabula.read_pdf(file_name, pages='all', pandas_options={'header': [1]}, lattice=True)
+    if len(schedule_df.columns) != 6:
+        raise Exception('Format of file is wrong.  Expected 6 columns.  Actual: ', len(schedule_df.columns))
     schedule_df = schedule_df[(schedule_df.Volunteer != 'Volunteer')]  # Remove repeated header rows
     schedule_df = schedule_df.fillna(method='ffill')
     schedule_df = schedule_df[(schedule_df.Volunteer != 'Open')]
@@ -29,6 +31,7 @@ def etl_shift_schedule(file_name: str) -> pd.DataFrame:
 
 
 def set_level_indicator_vars(schedule_df: pd.DataFrame) -> pd.DataFrame:
+    schedule_df['Green'] = schedule_df.LEVEL.apply(lambda l: 'GREEN' in l.upper())
     schedule_df['Blue'] = schedule_df.LEVEL.apply(lambda l: 'BLUE' in l.upper())
     schedule_df['Purple'] = schedule_df.LEVEL.apply(lambda l: 'PURPLE' in l.upper())
     return schedule_df
@@ -44,7 +47,7 @@ def transform_dates(schedule_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_dbs_shift_counts(schedule_df: pd.DataFrame) -> pd.DataFrame:
-    shifts_minimal = schedule_df[['Start_Date', 'End_Date', 'Blue', 'Purple']]
+    shifts_minimal = schedule_df[['Start_Date', 'End_Date', 'Green', 'Blue', 'Purple']]
     shift_counts = shifts_minimal.groupby(['Start_Date', 'End_Date']).sum()
     return shift_counts
 
@@ -99,7 +102,7 @@ def format_shift_counts(assigned: pd.DataFrame) -> pd.DataFrame:
     a_df['Date'] = a_df['shift'].apply(shift_date_str)
     a_df['Time'] = a_df['shift'].apply(shift_time_str)
     # Drop unneeded columns and reorder
-    a_out = a_df[['Date', 'Time', 'Blue', 'Purple', 'Need']]
+    a_out = a_df[['Date', 'Time', 'Green', 'Blue', 'Purple', 'Need']]
     return a_out
 
 
@@ -182,7 +185,7 @@ def assign_dbs_to_shift(shift_counts_df: pd.DataFrame, schedule: dict):
     assigned_counts['shift'] = assigned_counts.apply(
         lambda row: get_shift((row['Start_Date'], row['End_Date']), schedule), axis=1)
     assigned_counts = assigned_counts.groupby(['shift']).sum()
-    assigned_counts['Need'] = assigned_counts.apply(lambda r: 15 - r['Blue'] - r['Purple'], axis=1)
+    assigned_counts['Need'] = assigned_counts.apply(lambda r: 15 - r['Green'] - r['Blue'] - r['Purple'], axis=1)
     return assigned_counts
 
 
